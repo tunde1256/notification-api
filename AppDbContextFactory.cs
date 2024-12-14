@@ -1,22 +1,23 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore.Design; // Add this
+using Microsoft.Extensions.Logging;
 using NotificationApi.Data;
-using System.IO;
 
-public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
+namespace NotificationApi
 {
-    public AppDbContext CreateDbContext(string[] args)
+    public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     {
-        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory()) 
-            .AddJsonFile("appsettings.json")
-            .Build();
+        public AppDbContext CreateDbContext(string[] args)
+        {
+            var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 
-        optionsBuilder.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            // Provide configuration and logger
+            var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+            var logger = loggerFactory.CreateLogger<AppDbContext>();
 
-        return new AppDbContext(optionsBuilder.Options);
+            optionsBuilder.UseSqlServer("YourConnectionStringHere");
+
+            return new AppDbContext(optionsBuilder.Options, logger);
+        }
     }
 }

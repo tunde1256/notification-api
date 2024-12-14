@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Twilio;
 using Twilio.Rest.Api.V2010.Account;
 using Twilio.Types;
@@ -12,17 +13,22 @@ namespace NotificationApi.Services
         private readonly string _twilioAccountSid;
         private readonly string _twilioAuthToken;
         private readonly string _twilioPhoneNumber;
+        private readonly ILogger<SmsService> _logger;
 
-        public SmsService(IConfiguration configuration)
+        public SmsService(IConfiguration configuration, ILogger<SmsService> logger)
         {
             // Retrieve Twilio configuration values from appsettings.json
             _twilioAccountSid = configuration["Twilio:AccountSid"];
             _twilioAuthToken = configuration["Twilio:AuthToken"];
             _twilioPhoneNumber = configuration["Twilio:FromPhoneNumber"];
+            _logger = logger;
+
+            _logger.LogInformation("SmsService initialized with TwilioPhoneNumber: {PhoneNumber}", _twilioPhoneNumber);
         }
 
         public async Task SendEmailAsync(string recipientEmail, string subject, string body)
         {
+            _logger.LogWarning("SendEmailAsync method was called, but this service does not handle emails.");
             throw new NotImplementedException("This service does not handle emails.");
         }
 
@@ -30,6 +36,8 @@ namespace NotificationApi.Services
         {
             try
             {
+                _logger.LogInformation("Attempting to send SMS to {PhoneNumber}", phoneNumber);
+
                 // Initialize Twilio client
                 TwilioClient.Init(_twilioAccountSid, _twilioAuthToken);
 
@@ -41,12 +49,13 @@ namespace NotificationApi.Services
                 );
 
                 // Log the response
-                Console.WriteLine($"SMS sent successfully to {phoneNumber}. SID: {messageResource.Sid}");
+                _logger.LogInformation("SMS sent successfully to {PhoneNumber}. SID: {MessageSid}", phoneNumber, messageResource.Sid);
             }
             catch (Exception ex)
             {
                 // Log any exception
-                Console.WriteLine($"Error sending SMS: {ex.Message}");
+                _logger.LogError(ex, "Error occurred while sending SMS to {PhoneNumber}", phoneNumber);
+                throw;
             }
         }
     }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
 using System.Net.Mail;
@@ -11,10 +12,10 @@ namespace NotificationApi.Services
     {
         private readonly SmtpClient _smtpClient;
         private readonly string _senderEmail;
+        private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IConfiguration configuration)
+        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
         {
-            // Load configuration values once
             _senderEmail = configuration["EmailSettings:SenderEmail"];
             var senderPassword = configuration["EmailSettings:SenderPassword"];
             var smtpHost = configuration["EmailSettings:SmtpHost"];
@@ -26,6 +27,9 @@ namespace NotificationApi.Services
                 Credentials = new NetworkCredential(_senderEmail, senderPassword),
                 EnableSsl = true
             };
+
+            _logger = logger;
+            _logger.LogInformation("EmailService initialized with SMTP host: {SmtpHost} and port: {SmtpPort}", smtpHost, smtpPort);
         }
 
         public async Task SendEmailAsync(string toEmail, string subject, string body)
@@ -35,6 +39,9 @@ namespace NotificationApi.Services
                 IsBodyHtml = true
             };
 
+            // Log the start of the email sending process
+            _logger.LogInformation("Preparing to send email to: {ToEmail}, Subject: {Subject}", toEmail, subject);
+
             // Retry logic for transient failures
             const int maxRetries = 3;
             const int delayBetweenRetriesMs = 1000; // 1 second
@@ -43,17 +50,19 @@ namespace NotificationApi.Services
             {
                 try
                 {
+                    _logger.LogInformation("Attempt {Attempt} to send email to {ToEmail}", attempt, toEmail);
                     await _smtpClient.SendMailAsync(mailMessage);
+                    _logger.LogInformation("Email successfully sent to {ToEmail}.", toEmail);
                     return; // Email sent successfully, exit the loop
                 }
                 catch (SmtpException ex) when (attempt < maxRetries)
                 {
-                    // Log the exception (logging logic not shown here)
-                    Console.WriteLine($"Attempt {attempt} failed: {ex.Message}");
+                    _logger.LogWarning(ex, "Attempt {Attempt} to send email to {ToEmail} failed: {ErrorMessage}", attempt, toEmail, ex.Message);
                     Thread.Sleep(delayBetweenRetriesMs); // Wait before retrying
                 }
             }
 
+            _logger.LogError("Failed to send email to {ToEmail} after {MaxRetries} attempts.", toEmail, maxRetries);
             throw new Exception("Failed to send email after multiple attempts.");
         }
     }

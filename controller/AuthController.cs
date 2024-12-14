@@ -6,6 +6,8 @@ using NotificationApi.Services;
 using System;
 using System.Threading.Tasks;
 using BCrypt.Net;
+using Microsoft.Extensions.Configuration;  // Ensure this is at the top
+using Microsoft.Extensions.Logging;       // Add this for logging
 
 namespace NotificationApi.Controllers
 {
@@ -15,11 +17,15 @@ namespace NotificationApi.Controllers
     {
         private readonly MongoDbContext _mongoDbContext;
         private readonly IEmailService _emailService;
+        private readonly JwtService _jwtService;
+        private readonly ILogger<AuthController> _logger; // Add logger
 
-        public AuthController(MongoDbContext mongoDbContext, IEmailService emailService)
+        public AuthController(MongoDbContext mongoDbContext, IEmailService emailService, JwtService jwtService, ILogger<AuthController> logger)
         {
             _mongoDbContext = mongoDbContext;
             _emailService = emailService;
+            _jwtService = jwtService;
+            _logger = logger;  // Inject logger
         }
 
         // POST api/auth/register
@@ -39,10 +45,12 @@ namespace NotificationApi.Controllers
             // Insert the new user
             await _mongoDbContext.Users.InsertOneAsync(user);
 
+            // Log registration success
+            _logger.LogInformation("New user registered: {Email}", user.Email);
+
             // Send welcome email asynchronously
             var emailSubject = "Welcome to Notification API!";
             var emailBody = $"Hi {user.Name},\n\nThank you for registering with us. We are excited to have you on board!\n\nBest Regards,\nNotification API Team";
-
             SendEmailInBackground(user.Email, emailSubject, emailBody);
 
             return CreatedAtAction(nameof(Login), new { id = user.Id }, user);
@@ -61,15 +69,26 @@ namespace NotificationApi.Controllers
                 .FirstOrDefaultAsync();
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
+            {
+                _logger.LogWarning("Failed login attempt for email: {Email}", loginRequest.Email);  // Log failed login attempt
                 return Unauthorized("Invalid credentials.");
+            }
 
+            // Log successful login
+            _logger.LogInformation("User logged in successfully: {Email}", user.Email);
+
+            // Generate JWT token after successful login
+            var token = _jwtService.GenerateJwtToken(user);
+
+            // Return the user info along with the JWT token
             return Ok(new
             {
                 user.Id,
                 user.Name,
                 user.Email,
                 user.PhoneNumber,
-                user.NotificationPreference
+                user.NotificationPreference,
+                Token = token // Return the JWT token here
             });
         }
 
@@ -88,13 +107,15 @@ namespace NotificationApi.Controllers
             if (user == null)
                 return NotFound("User not found.");
 
+            // Log user deletion
+            _logger.LogInformation("Deleting user: {Email}", email);
+
             // Delete the user
             await _mongoDbContext.Users.DeleteOneAsync(u => u.Email.ToLower() == email.ToLower());
 
             // Send account deletion email asynchronously
             var emailSubject = "Account Deleted";
             var emailBody = $"Hi {user.Name},\n\nYour account associated with {email} has been successfully deleted.\n\nBest Regards,\nNotification API Team";
-
             SendEmailInBackground(user.Email, emailSubject, emailBody);
 
             return NoContent();
@@ -121,7 +142,7 @@ namespace NotificationApi.Controllers
                 catch (Exception ex)
                 {
                     // Log the exception or handle it accordingly
-                    Console.WriteLine($"Failed to send email to {email}: {ex.Message}");
+                    _logger.LogError(ex, "Failed to send email to {Email}", email);  // Log the error
                 }
             });
         }

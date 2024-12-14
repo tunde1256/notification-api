@@ -64,25 +64,38 @@ namespace NotificationApi.Controllers
             }
         }
 
-  [HttpPost("notify-user")]
-public async Task<IActionResult> NotifyUser([FromBody] NotificationRequest request)
-{
-    if (request == null)
-    {
-        return BadRequest("Invalid request");
-    }
+        [HttpPost("notify-user")]
+        public async Task<IActionResult> NotifyUser([FromBody] NotificationRequest request)
+        {
+            _logger.LogInformation($"[{DateTime.UtcNow}] Received request to notify user. UserId: {request.UserId}, NotificationType: {request.NotificationType}");
 
-    var user = await _userService.GetUserByIdAsync(request.UserId);
+            if (request == null)
+            {
+                _logger.LogWarning($"[{DateTime.UtcNow}] Invalid request received for user notification.");
+                return BadRequest("Invalid request");
+            }
 
-    if (user == null)
-    {
-        return NotFound("User not found");
-    }
+            var user = await _userService.GetUserByIdAsync(request.UserId);
 
-    // Pass the NotificationType (e.g., "email" or "sms") as the third parameter
-    await _userService.SendNotificationAsync(user, request.Message, request.NotificationType);
+            if (user == null)
+            {
+                _logger.LogWarning($"[{DateTime.UtcNow}] User with ID {request.UserId} not found.");
+                return NotFound("User not found");
+            }
 
-    return Ok("Notification sent");
-}
+            try
+            {
+                // Pass the NotificationType (e.g., "email" or "sms") as the third parameter
+                await _userService.SendNotificationAsync(user, request.Message, request.NotificationType);
+
+                _logger.LogInformation($"[{DateTime.UtcNow}] Notification sent successfully to user {user.Id}.");
+                return Ok("Notification sent");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[{DateTime.UtcNow}] Error occurred while sending notification to user {user.Id}. Exception: {ex.Message}");
+                return StatusCode(500, new { Message = "Failed to send notification. Please try again later." });
+            }
+        }
     }
 }

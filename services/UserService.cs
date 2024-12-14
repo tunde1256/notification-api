@@ -1,7 +1,9 @@
 using MongoDB.Driver;
 using NotificationApi.Data;
 using NotificationApi.Models;  // Ensure you have this to reference the User class
+using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace NotificationApi.Services
 {
@@ -10,54 +12,98 @@ namespace NotificationApi.Services
         private readonly IMongoCollection<User> _users;
         private readonly IEmailService _emailService;
         private readonly ISmsService _smsService;
+        private readonly ILogger<UserService> _logger;
 
         // Constructor
-        public UserService(MongoDbContext mongoDbContext, IEmailService emailService, ISmsService smsService)
+        public UserService(MongoDbContext mongoDbContext, IEmailService emailService, ISmsService smsService, ILogger<UserService> logger)
         {
             _users = mongoDbContext.Users;
             _emailService = emailService;
             _smsService = smsService;
+            _logger = logger;
+
+            _logger.LogInformation("UserService initialized.");
         }
 
         // Corrected method to match IUserService signature
         public async Task<User> GetUserByIdAsync(int userId)
         {
-            var user = await _users.Find(u => u.Id == userId).FirstOrDefaultAsync();
-            return user; // Make sure you're returning Task<User>
+            try
+            {
+                _logger.LogInformation("Fetching user with ID: {UserId}", userId);
+
+                var user = await _users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    _logger.LogWarning("User with ID {UserId} not found.", userId);
+                }
+                else
+                {
+                    _logger.LogInformation("User with ID {UserId} fetched successfully.", userId);
+                }
+
+                return user;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while fetching user with ID: {UserId}", userId);
+                throw;
+            }
         }
 
         // Corrected method to match IUserService signature
         public async Task SendNotificationAsync(User user, string message, string notificationType)
         {
-            if (user == null) 
-                throw new ArgumentNullException(nameof(user), "User cannot be null.");
-
-            if (string.IsNullOrEmpty(notificationType))
-                throw new ArgumentException("Notification type cannot be null or empty.", nameof(notificationType));
-
-            // Handle different notification types
-            if (notificationType.ToLower() == "email")
+            try
             {
-                var subject = "Notification from Our Service";
-                var body = message;
+                if (user == null)
+                {
+                    _logger.LogError("User is null. Cannot send notification.");
+                    throw new ArgumentNullException(nameof(user), "User cannot be null.");
+                }
 
-                // Sending the email asynchronously
-                await _emailService.SendEmailAsync(user.Email, subject, body);
+                if (string.IsNullOrEmpty(notificationType))
+                {
+                    _logger.LogError("Notification type is null or empty. Cannot send notification.");
+                    throw new ArgumentException("Notification type cannot be null or empty.", nameof(notificationType));
+                }
+
+                _logger.LogInformation("Sending {NotificationType} notification to user: {UserId}", notificationType, user.Id);
+
+                if (notificationType.ToLower() == "email")
+                {
+                    var subject = "Notification from Our Service";
+                    var body = message;
+
+                    _logger.LogInformation("Sending email to {Email}", user.Email);
+                    await _emailService.SendEmailAsync(user.Email, subject, body);
+                    _logger.LogInformation("Email sent successfully to {Email}", user.Email);
+                }
+                else if (notificationType.ToLower() == "sms")
+                {
+                    var phoneNumber = user.PhoneNumber;
+
+                    if (string.IsNullOrEmpty(phoneNumber))
+                    {
+                        _logger.LogError("User {UserId} does not have a valid phone number.", user.Id);
+                        throw new ArgumentException("User does not have a valid phone number.");
+                    }
+
+                    _logger.LogInformation("Sending SMS to phone number: {PhoneNumber}", phoneNumber);
+                    await _smsService.SendSmsAsync(phoneNumber, message);
+                    _logger.LogInformation("SMS sent successfully to phone number: {PhoneNumber}", phoneNumber);
+                }
+                else
+                {
+                    _logger.LogError("Invalid notification type: {NotificationType}. Supported types are: email, sms.", notificationType);
+                    throw new ArgumentException("Invalid notification type. Supported types: email, sms.", nameof(notificationType));
+                }
             }
-            else if (notificationType.ToLower() == "sms")
+            catch (Exception ex)
             {
-                // Ensure user model has PhoneNumber property
-                var phoneNumber = user.PhoneNumber; 
-                
-                if (string.IsNullOrEmpty(phoneNumber))
-                    throw new ArgumentException("User does not have a valid phone number.");
-
-                // Sending SMS asynchronously
-                await _smsService.SendSmsAsync(phoneNumber, message);
-            }
-            else
-            {
-                throw new ArgumentException("Invalid notification type. Supported types: email, sms.", nameof(notificationType));
+                _logger.LogError(ex, "Error occurred while sending {NotificationType} notification to user: {UserId}", notificationType, user?.Id);
+                throw;
             }
         }
     }
