@@ -1,46 +1,60 @@
+using Microsoft.Extensions.Configuration;
 using System;
+using System.Net;
+using System.Net.Mail;
+using System.Threading;
 using System.Threading.Tasks;
-using MailKit.Net.Smtp;
-using MimeKit;
 
-public class EmailService
+namespace NotificationApi.Services
 {
-    private readonly string _smtpHost = "smtp.gmail.com"; 
-    private readonly int _smtpPort = 587;
-    private readonly string _senderEmail = "medimapapplication@gmail.com"; 
-    private readonly string _senderPassword = "rbgk ijja flam cjzi";  
-
-    public async Task SendEmailAsync(string recipientEmail, string subject, string body)
+    public class EmailService : IEmailService
     {
-        var message = new MimeMessage();
+        private readonly SmtpClient _smtpClient;
+        private readonly string _senderEmail;
 
-        message.From.Add(new MailboxAddress("Notification", _senderEmail));  
-        message.To.Add(new MailboxAddress("Recipient", recipientEmail));  
-        message.Subject = subject;
-
-        var bodyBuilder = new BodyBuilder
+        public EmailService(IConfiguration configuration)
         {
-            TextBody = body,  
-            HtmlBody = $"<p>{body}</p>"  
-        };
-        message.Body = bodyBuilder.ToMessageBody();
+            // Load configuration values once
+            _senderEmail = configuration["EmailSettings:SenderEmail"];
+            var senderPassword = configuration["EmailSettings:SenderPassword"];
+            var smtpHost = configuration["EmailSettings:SmtpHost"];
+            var smtpPort = int.Parse(configuration["EmailSettings:SmtpPort"]);
 
-        
-        using (var client = new SmtpClient())
+            // Initialize and configure SmtpClient once (reused across requests)
+            _smtpClient = new SmtpClient(smtpHost, smtpPort)
+            {
+                Credentials = new NetworkCredential(_senderEmail, senderPassword),
+                EnableSsl = true
+            };
+        }
+
+        public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
-            try
+            var mailMessage = new MailMessage(_senderEmail, toEmail, subject, body)
             {
-                await client.ConnectAsync(_smtpHost, _smtpPort, false);
-                await client.AuthenticateAsync(_senderEmail, _senderPassword);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
+                IsBodyHtml = true
+            };
 
-                Console.WriteLine("Email sent successfully!");
-            }
-            catch (Exception ex)
+            // Retry logic for transient failures
+            const int maxRetries = 3;
+            const int delayBetweenRetriesMs = 1000; // 1 second
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                Console.WriteLine($"Error sending email: {ex.Message}");
+                try
+                {
+                    await _smtpClient.SendMailAsync(mailMessage);
+                    return; // Email sent successfully, exit the loop
+                }
+                catch (SmtpException ex) when (attempt < maxRetries)
+                {
+                    // Log the exception (logging logic not shown here)
+                    Console.WriteLine($"Attempt {attempt} failed: {ex.Message}");
+                    Thread.Sleep(delayBetweenRetriesMs); // Wait before retrying
+                }
             }
+
+            throw new Exception("Failed to send email after multiple attempts.");
         }
     }
 }
