@@ -20,10 +20,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="MimeKit" Version="4.9.0" />
+    <PackageReference Include="MongoDB.Driver" Version="3.1.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Twilio" Version="7.8.0" />
+    <ProjectReference Include="..\NotificationApi.Models\NotificationApi.Models.csproj" />
   </ItemGroup>
 
 </Project>
