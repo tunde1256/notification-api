@@ -8,19 +8,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configure MongoDB settings
 builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDB"));
-builder.Services.AddScoped<MongoDbContext>();  // Scoped for MongoDbContext to avoid singleton issues
+builder.Services.AddScoped<MongoDbContext>();
 
-// Register application services
+// Register services
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IUserService, UserService>();  // Ensure UserService interacts with MongoDB
+builder.Services.AddScoped<IUserService, UserService>();
 
-// Register JwtService for handling JWT token creation and validation
+// Register JwtService
 builder.Services.AddScoped<JwtService>(serviceProvider =>
 {
     var config = serviceProvider.GetRequiredService<IConfiguration>();
-    var secretKey = config["Jwt:SecretKey"];
+    var secretKey = config["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is missing.");
     var issuer = config["Jwt:Issuer"];
     var audience = config["Jwt:Audience"];
     var expiryHours = double.Parse(config["Jwt:ExpiryHours"]);
@@ -28,10 +28,7 @@ builder.Services.AddScoped<JwtService>(serviceProvider =>
     return new JwtService(secretKey, issuer, audience, expiryHours);
 });
 
-// Add logging service
-builder.Services.AddLogging();
-
-// Add authentication using JWT Bearer tokens
+// Add authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -48,33 +45,44 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Add controllers to the services container
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigins", policy =>
+    {
+        policy.WithOrigins("https://yourfrontend.com")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// Add controllers
 builder.Services.AddControllers();
 
-// Add Swagger for API documentation
+// Add Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Set application URL, fallback if not configured
-var appUrl = builder.Configuration["AppUrl"] ?? "http://127.0.0.1:5145";
+// Retrieve port from configuration or environment
+var configuredPort = builder.Configuration["AppSettings:Port"] ?? builder.Configuration["PORT"] ?? "5145";
+var appUrl = $"http://0.0.0.0:{configuredPort}";
 app.Urls.Add(appUrl);
 
-// Configure middleware pipeline
-app.UseRouting();
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Swagger UI for development
+// Middleware pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    app.Logger.LogInformation("Application running at: {Url}", appUrl);
 }
 
-// Map controllers to endpoints
-app.MapControllers();
+app.UseCors("AllowSpecificOrigins");
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 
-// Start the application
+app.MapControllers();
 app.Run();

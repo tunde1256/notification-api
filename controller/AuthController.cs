@@ -5,6 +5,7 @@ using NotificationApi.Models;
 using NotificationApi.Services;
 using System;
 using System.Threading.Tasks;
+using BCrypt.Net;
 
 namespace NotificationApi.Controllers
 {
@@ -32,6 +33,9 @@ namespace NotificationApi.Controllers
             if (await UserExists(user.Email))
                 return Conflict("A user with this email already exists.");
 
+            // Hash the password before saving
+            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+
             // Insert the new user
             await _mongoDbContext.Users.InsertOneAsync(user);
 
@@ -51,12 +55,12 @@ namespace NotificationApi.Controllers
             if (loginRequest == null || string.IsNullOrWhiteSpace(loginRequest.Email) || string.IsNullOrWhiteSpace(loginRequest.Password))
                 return BadRequest("Email and Password are required.");
 
-            // Validate user credentials
+            // Find the user by email
             var user = await _mongoDbContext.Users
-                .Find(u => u.Email == loginRequest.Email && u.Password == loginRequest.Password)
+                .Find(u => u.Email.ToLower() == loginRequest.Email.ToLower())
                 .FirstOrDefaultAsync();
 
-            if (user == null)
+            if (user == null || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
                 return Unauthorized("Invalid credentials.");
 
             return Ok(new
