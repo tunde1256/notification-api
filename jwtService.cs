@@ -41,10 +41,10 @@ namespace NotificationApi.Services
 
                 var claims = new[]
                 {
-                    new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),  // Subject (User ID)
-                    new Claim(JwtRegisteredClaimNames.Email, user.Email),        // Email claim
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique token ID
-                    new Claim("name", user.Name)                                 // Custom claim
+                    new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),  
+                    new Claim(JwtRegisteredClaimNames.Email, user.Email),       
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim("name", user.Name)                                 
                 };
 
                 _logger.LogDebug("Claims created for user: {UserId}", user.Id);

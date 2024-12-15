@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using NotificationApi.Models; // Ensure this is the correct namespace
+using NotificationApi.Models; 
 
 namespace NotificationApi.Services
 {

@@ -20,7 +20,7 @@ namespace NotificationApi.Controllers
         {
             _emailService = emailService;
             _smsService = smsService;
-            _userService = userService;  // Initialize IUserService
+            _userService = userService;  
             _logger = logger;
         }
 
@@ -85,7 +85,6 @@ namespace NotificationApi.Controllers
 
             try
             {
-                // Pass the NotificationType (e.g., "email" or "sms") as the third parameter
                 await _userService.SendNotificationAsync(user, request.Message, request.NotificationType);
 
                 _logger.LogInformation($"[{DateTime.UtcNow}] Notification sent successfully to user {user.Id}.");

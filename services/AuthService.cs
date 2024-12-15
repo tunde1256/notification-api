@@ -33,8 +33,8 @@ namespace NotificationApi.Services
                 throw new Exception("User with this email already exists.");
             }
 
-            user.Password = HashPassword(password); // Hash the password
-            await _context.Users.InsertOneAsync(user); // Insert user into MongoDB
+            user.Password = HashPassword(password); 
+            await _context.Users.InsertOneAsync(user); 
 
             _logger.LogInformation("User with email {Email} successfully registered.", user.Email);
             return user;

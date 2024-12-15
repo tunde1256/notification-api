@@ -21,7 +21,6 @@ namespace NotificationApi.Services
             var smtpHost = configuration["EmailSettings:SmtpHost"];
             var smtpPort = int.Parse(configuration["EmailSettings:SmtpPort"]);
 
-            // Initialize and configure SmtpClient once (reused across requests)
             _smtpClient = new SmtpClient(smtpHost, smtpPort)
             {
                 Credentials = new NetworkCredential(_senderEmail, senderPassword),
@@ -39,12 +38,11 @@ namespace NotificationApi.Services
                 IsBodyHtml = true
             };
 
-            // Log the start of the email sending process
             _logger.LogInformation("Preparing to send email to: {ToEmail}, Subject: {Subject}", toEmail, subject);
 
-            // Retry logic for transient failures
+          
             const int maxRetries = 3;
-            const int delayBetweenRetriesMs = 1000; // 1 second
+            const int delayBetweenRetriesMs = 1000; 
 
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
@@ -53,12 +51,12 @@ namespace NotificationApi.Services
                     _logger.LogInformation("Attempt {Attempt} to send email to {ToEmail}", attempt, toEmail);
                     await _smtpClient.SendMailAsync(mailMessage);
                     _logger.LogInformation("Email successfully sent to {ToEmail}.", toEmail);
-                    return; // Email sent successfully, exit the loop
-                }
+                    return; 
+                          }
                 catch (SmtpException ex) when (attempt < maxRetries)
                 {
                     _logger.LogWarning(ex, "Attempt {Attempt} to send email to {ToEmail} failed: {ErrorMessage}", attempt, toEmail, ex.Message);
-                    Thread.Sleep(delayBetweenRetriesMs); // Wait before retrying
+                    Thread.Sleep(delayBetweenRetriesMs); 
                 }
             }
 

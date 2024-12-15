@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace NotificationApi.Services
 {
-    public class MessageService  // This could be your general service that calls ISmsService and IEmailService
+    public class MessageService  
     {
         private readonly ISmsService _smsService;
         private readonly IEmailService _emailService;

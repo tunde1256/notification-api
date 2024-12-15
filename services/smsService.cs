@@ -17,7 +17,6 @@ namespace NotificationApi.Services
 
         public SmsService(IConfiguration configuration, ILogger<SmsService> logger)
         {
-            // Retrieve Twilio configuration values from appsettings.json
             _twilioAccountSid = configuration["Twilio:AccountSid"];
             _twilioAuthToken = configuration["Twilio:AuthToken"];
             _twilioPhoneNumber = configuration["Twilio:FromPhoneNumber"];
@@ -38,17 +37,15 @@ namespace NotificationApi.Services
             {
                 _logger.LogInformation("Attempting to send SMS to {PhoneNumber}", phoneNumber);
 
-                // Initialize Twilio client
                 TwilioClient.Init(_twilioAccountSid, _twilioAuthToken);
 
-                // Send SMS
+               
                 var messageResource = await MessageResource.CreateAsync(
                     to: new PhoneNumber(phoneNumber),
                     from: new PhoneNumber(_twilioPhoneNumber),
                     body: message
                 );
 
-                // Log the response
                 _logger.LogInformation("SMS sent successfully to {PhoneNumber}. SID: {MessageSid}", phoneNumber, messageResource.Sid);
             }
             catch (Exception ex)

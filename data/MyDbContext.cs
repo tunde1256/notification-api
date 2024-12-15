@@ -1,4 +1,3 @@
-// File: NotificationApi/Data/MyDbContext.cs
 using Microsoft.EntityFrameworkCore;
 using NotificationApi.Models;
 

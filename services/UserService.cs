@@ -1,6 +1,6 @@
 using MongoDB.Driver;
 using NotificationApi.Data;
-using NotificationApi.Models;  // Ensure you have this to reference the User class
+using NotificationApi.Models;  
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -14,7 +14,7 @@ namespace NotificationApi.Services
         private readonly ISmsService _smsService;
         private readonly ILogger<UserService> _logger;
 
-        // Constructor
+        
         public UserService(MongoDbContext mongoDbContext, IEmailService emailService, ISmsService smsService, ILogger<UserService> logger)
         {
             _users = mongoDbContext.Users;
@@ -25,7 +25,7 @@ namespace NotificationApi.Services
             _logger.LogInformation("UserService initialized.");
         }
 
-        // Corrected method to match IUserService signature
+        
         public async Task<User> GetUserByIdAsync(int userId)
         {
             try
@@ -52,7 +52,6 @@ namespace NotificationApi.Services
             }
         }
 
-        // Corrected method to match IUserService signature
         public async Task SendNotificationAsync(User user, string message, string notificationType)
         {
             try
